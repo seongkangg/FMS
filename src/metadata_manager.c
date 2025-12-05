@@ -43,9 +43,9 @@ int save_superblock() {
 }
 
 /* Initialize file system metadata */
-int init_filesystem(const char* disk_name, uint32_t num_blocks) {
+int init_filesystem(uint32_t num_blocks) {
     /* Initialize disk */
-    if (init_disk(disk_name, num_blocks) < 0) {
+    if (init_disk(num_blocks) < 0) {
         return -1;
     }
 
@@ -120,6 +120,12 @@ int load_inode_table() {
     free(block_buffer);
     inode_table_loaded = true;
     return 0;
+}
+
+/* Force reload inode table from disk (clears cached version) */
+int reload_inode_table() {
+    inode_table_loaded = false;
+    return load_inode_table();
 }
 
 /* Save inode table to disk */

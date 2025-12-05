@@ -70,6 +70,11 @@ uint32_t find_inode_by_path(const char* path) {
         return (uint32_t)-1;
     }
 
+    /* Ensure inode table is loaded */
+    if (load_inode_table() < 0) {
+        return (uint32_t)-1;
+    }
+
     Superblock* sb = get_superblock();
     if (!sb) {
         return (uint32_t)-1;
@@ -427,6 +432,11 @@ int openFile(const char* path, uint8_t mode) {
 
     Inode inode;
     if (load_inode(inode_num, &inode) < 0) {
+        return -1;
+    }
+
+    /* Check if inode is actually used */
+    if (!inode.used) {
         return -1;
     }
 

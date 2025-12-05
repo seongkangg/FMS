@@ -76,9 +76,9 @@ typedef struct {
 /* Function Prototypes */
 
 /* Storage Manager Functions */
-int init_disk(const char* disk_name, uint32_t num_blocks);
-int open_disk(const char* disk_name);
-int close_disk();
+int init_disk(uint32_t num_blocks);
+int open_disk(void);
+int close_disk(void);
 int read_block(uint32_t block_num, void* buffer);
 int write_block(uint32_t block_num, const void* buffer);
 
@@ -91,10 +91,11 @@ int load_bitmap();
 int save_bitmap();
 
 /* Metadata Manager Functions */
-int init_filesystem(const char* disk_name, uint32_t num_blocks);
+int init_filesystem(uint32_t num_blocks);
 int load_superblock();
 int save_superblock();
 int load_inode_table();
+int reload_inode_table();
 int load_inode(uint32_t inode_num, Inode* inode);
 int save_inode(const Inode* inode);
 uint32_t allocate_inode();
