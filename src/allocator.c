@@ -13,8 +13,8 @@ static uint32_t bitmap_blocks = 0;
 /* Calculate how many blocks are needed for the bitmap */
 static uint32_t calculate_bitmap_blocks(uint32_t total_blocks) {
     uint32_t bits_needed = total_blocks;
-    uint32_t bytes_needed = (bits_needed + 7) / 8;
-    return (bytes_needed + BLOCK_SIZE - 1) / BLOCK_SIZE;
+    uint32_t bytes_needed = (bits_needed + 7) / 8;   // rounds up value to nearest integer
+    return (bytes_needed + BLOCK_SIZE - 1) / BLOCK_SIZE;  // gets number of blocks needed for bitmap
 }
 
 /* Initialize the free block bitmap */
@@ -62,7 +62,7 @@ int init_bitmap() {
     return save_bitmap();
 }
 
-/* Load the bitmap from disk */
+/* Load the bitmap*/
 int load_bitmap() {
     if (load_superblock() < 0) {
         return -1;
@@ -107,7 +107,7 @@ int load_bitmap() {
     return 0;
 }
 
-/* Save the bitmap to disk */
+/* Save the bitmap*/
 int save_bitmap() {
     if (!bitmap || load_superblock() < 0) {
         return -1;
