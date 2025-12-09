@@ -201,30 +201,4 @@ int free_block(uint32_t block_num) {
     return save_bitmap();
 }
 
-/* Check if a block is free */
-bool is_block_free(uint32_t block_num) {
-    if (!bitmap) {
-        if (load_bitmap() < 0) {
-            return false;
-        }
-    }
-
-    if (load_superblock() < 0) {
-        return false;
-    }
-
-    Superblock* sb = get_superblock();
-    if (!sb) {
-        return false;
-    }
-
-    if (block_num >= sb->total_blocks) {
-        return false;
-    }
-
-    uint32_t byte = block_num / 8;
-    uint32_t bit = block_num % 8;
-
-    return !(bitmap[byte] & (1 << bit));
-}
 

@@ -33,27 +33,6 @@ int init_disk(uint32_t num_blocks) {
 }
 
 
-/* Open an existing disk (RAM-only - checks if already initialized) */
-int open_disk(void) {
-    /* If disk is already initialized, just return success */
-    if (disk_initialized && ram_disk != NULL) {
-        /* Check if file system is valid by trying to load superblock */
-        if (load_superblock() == 0) {
-            return 0;
-        }
-    }
-    
-    /* Disk not initialized - must call init first */
-    return -1;
-}
-
-
-/* Close the disk (RAM-only mode - no persistence) */
-int close_disk() {
-    /* Don't free memory on close - keep it for potential reopening in same process */
-    return 0;
-}
-
 /* Free all RAM disk memory (call this when completely done) */
 int free_disk() {
     if (ram_disk != NULL) {

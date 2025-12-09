@@ -2,7 +2,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <time.h>
 #include <errno.h>
 
 extern Superblock* get_superblock();
@@ -219,7 +218,6 @@ int add_directory_entry(uint32_t dir_inode, const char* name, uint32_t inode_num
                 return -1;
             }
 
-            inode.modified_time = time(NULL);
             save_inode(&inode);
             
             free(block);
@@ -264,7 +262,6 @@ int remove_directory_entry(uint32_t dir_inode, const char* name) {
                 return -1;
             }
 
-            inode.modified_time = time(NULL);
             save_inode(&inode);
             
             free(block);
@@ -377,9 +374,6 @@ int createFile(const char* path, uint8_t type) {
     inode.name[MAX_FILENAME_LEN - 1] = '\0';
     inode.size = 0;
     inode.parent_inode = parent_inode;
-    inode.created_time = time(NULL);
-    inode.modified_time = time(NULL);
-    inode.accessed_time = time(NULL);
     inode.used = 1;
 
     if (type == TYPE_DIRECTORY) {
@@ -449,10 +443,6 @@ int openFile(const char* path, uint8_t mode) {
         return -1;
     }
 
-    /* Update access time */
-    inode.accessed_time = time(NULL);
-    save_inode(&inode);
-
     return fd;
 }
 
@@ -461,12 +451,6 @@ int closeFile(int fd) {
     OpenFileEntry* entry = get_open_file_entry(fd);
     if (!entry) {
         return -1;
-    }
-
-    Inode inode;
-    if (load_inode(entry->inode_num, &inode) >= 0) {
-        inode.accessed_time = time(NULL);
-        save_inode(&inode);
     }
 
     return release_open_file(fd);
@@ -517,9 +501,6 @@ int readFile(int fd, void* buffer, uint32_t size) {
 
     memcpy(buffer, block + entry->position, bytes_to_read);
     entry->position += bytes_to_read;
-
-    inode.accessed_time = time(NULL);
-    save_inode(&inode);
 
     free(block);
     return bytes_to_read;
@@ -581,8 +562,6 @@ int writeFile(int fd, const void* buffer, uint32_t size) {
     }
 
     entry->position = (entry->mode & MODE_APPEND) ? inode.size : (entry->position + bytes_to_write);
-    inode.modified_time = time(NULL);
-    inode.accessed_time = time(NULL);
     save_inode(&inode);
 
     free(block);
@@ -601,27 +580,47 @@ int deleteFile(const char* path) {
         return -1;
     }
 
+    /* Check if inode is actually used */
+    if (!inode.used) {
+        return -1;
+    }
+
     if (inode.type != TYPE_FILE) {
         return -1;
     }
 
-    /* Remove from parent directory */
-    Inode parent;
-    if (load_inode(inode.parent_inode, &parent) < 0) {
-        return -1;
+    /* Close any open file descriptors for this file */
+    for (int i = 0; i < MAX_OPEN_FILES; i++) {
+        if (open_file_table[i].in_use && open_file_table[i].inode_num == inode_num) {
+            release_open_file(i);
+        }
     }
 
-    if (remove_directory_entry(inode.parent_inode, inode.name) < 0) {
+    /* Store filename before removing directory entry (inode.name might be needed) */
+    char filename[MAX_FILENAME_LEN];
+    strncpy(filename, inode.name, MAX_FILENAME_LEN - 1);
+    filename[MAX_FILENAME_LEN - 1] = '\0';
+    uint32_t parent_inode = inode.parent_inode;
+    uint32_t data_block = inode.data_block;
+
+    /* Remove from parent directory */
+    if (remove_directory_entry(parent_inode, filename) < 0) {
         return -1;
     }
 
     /* Free data block */
-    if (inode.data_block != 0) {
-        free_block(inode.data_block);
+    if (data_block != 0) {
+        if (free_block(data_block) < 0) {
+            /* If freeing block fails, try to restore directory entry */
+            /* Note: This is best-effort recovery */
+            return -1;
+        }
     }
 
     /* Free inode */
-    free_inode(inode_num);
+    if (free_inode(inode_num) < 0) {
+        return -1;
+    }
 
     return 0;
 }
@@ -723,40 +722,7 @@ int listDirectory(const char* path, char* output, uint32_t output_size) {
         written += strlen(line);
     }
 
-    inode.accessed_time = time(NULL);
-    save_inode(&inode);
-
     return count;
 }
 
-/* Search directory for pattern */
-int searchDirectory(const char* path, const char* pattern) {
-    uint32_t inode_num = find_inode_by_path(path);
-    if (inode_num == (uint32_t)-1) {
-        return -1;
-    }
-
-    Inode inode;
-    if (load_inode(inode_num, &inode) < 0) {
-        return -1;
-    }
-
-    if (inode.type != TYPE_DIRECTORY) {
-        return -1;
-    }
-
-    DirectoryEntry entries[16];
-    int count = read_directory_entries(inode_num, entries, 16);
-    if (count < 0) {
-        return -1;
-    }
-
-    for (int i = 0; i < count; i++) {
-        if (strstr(entries[i].name, pattern) != NULL) {
-            return 0; /* Found */
-        }
-    }
-
-    return -1; /* Not found */
-}
 

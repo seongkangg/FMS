@@ -3,7 +3,6 @@
 
 #include <stdint.h>
 #include <stdbool.h>
-#include <time.h>
 
 /* Constants */
 #define BLOCK_SIZE 256
@@ -38,8 +37,6 @@ typedef struct {
     uint32_t root_inode;         /* Root directory inode number */
     uint32_t bitmap_block;       /* Starting block of free block bitmap */
     uint32_t data_start_block;   /* Starting block of data area */
-    time_t created_time;         /* File system creation time */
-    uint32_t reserved[16];       /* Reserved for future use */
 } Superblock;
 
 /* Inode Structure (File Control Block) */
@@ -50,11 +47,7 @@ typedef struct {
     uint32_t size;               /* Size of file in bytes */
     uint32_t data_block;         /* Starting data block number */
     uint32_t parent_inode;       /* Parent directory inode */
-    time_t created_time;         /* Creation timestamp */
-    time_t modified_time;        /* Last modification timestamp */
-    time_t accessed_time;        /* Last access timestamp */
     uint8_t used;                /* 1 if inode is in use, 0 if free */
-    uint32_t reserved[8];        /* Reserved for future use */
 } Inode;
 
 /* Directory Entry Structure */
@@ -77,8 +70,6 @@ typedef struct {
 
 /* Storage Manager Functions */
 int init_disk(uint32_t num_blocks);
-int open_disk(void);
-int close_disk(void);
 int read_block(uint32_t block_num, void* buffer);
 int write_block(uint32_t block_num, const void* buffer);
 
@@ -86,7 +77,6 @@ int write_block(uint32_t block_num, const void* buffer);
 int init_bitmap();
 int allocate_block();
 int free_block(uint32_t block_num);
-bool is_block_free(uint32_t block_num);
 int load_bitmap();
 int save_bitmap();
 
@@ -117,7 +107,6 @@ int searchFile(const char* path);
 int makeDirectory(const char* path);
 int removeDirectory(const char* path);
 int listDirectory(const char* path, char* output, uint32_t output_size);
-int searchDirectory(const char* path, const char* pattern);
 
 /* Helper Functions */
 int parse_path(const char* path, char components[][MAX_FILENAME_LEN], int* count);

@@ -10,253 +10,12 @@ extern Superblock* get_superblock();
 
 /* Print usage information */
 void print_usage(const char* program_name) {
-    printf("Usage: %s <command> [arguments]\n\n", program_name);
-    printf("Commands:\n");
-    printf("  init [num_blocks]               - Initialize a new file system\n");
-    printf("  touch <file_path>              - Create a new file\n");
-    printf("  mkdir <dir_path>               - Create a new directory\n");
-    printf("  ls [dir_path]                  - List directory contents\n");
-    printf("  rm <file_path>                 - Remove a file\n");
-    printf("  rmdir <dir_path>               - Remove an empty directory\n");
-    printf("  cat <file_path>                - Display file contents\n");
-    printf("  write <file_path> <text>       - Write text to a file\n");
-    printf("  search <path>                  - Search for a file/directory\n");
-    printf("  shell                           - Start interactive shell (keeps RAM loaded)\n");
+    printf("Usage: %s [shell]\n\n", program_name);
+    printf("Starts the TinyFS interactive shell.\n");
+    printf("Type 'help' in the shell for available commands.\n");
     printf("\n");
 }
 
-/* Initialize file system */
-int cmd_init(int argc, char* argv[]) {
-    uint32_t num_blocks = argc > 1 ? (uint32_t)atoi(argv[1]) : MAX_BLOCKS;
-
-    if (num_blocks < 10 || num_blocks > MAX_BLOCKS) {
-        fprintf(stderr, "Error: Number of blocks must be between 10 and %d\n", MAX_BLOCKS);
-        return 1;
-    }
-
-    if (init_filesystem(num_blocks) < 0) {
-        fprintf(stderr, "Error: Failed to initialize file system\n");
-        return 1;
-    }
-
-    printf("File system initialized: %d blocks\n", num_blocks);
-    
-    return 0;
-}
-
-/* Touch command - create file */
-int cmd_touch(int argc, char* argv[]) {
-    if (argc < 2) {
-        fprintf(stderr, "Usage: %s touch <file_path>\n", argv[0]);
-        return 1;
-    }
-
-    if (open_disk() < 0) {
-        fprintf(stderr, "Error: Failed to open disk. Run 'init' first.\n");
-        return 1;
-    }
-
-    if (createFile(argv[1], TYPE_FILE) < 0) {
-        fprintf(stderr, "Error: Failed to create file: %s\n", argv[1]);
-        close_disk();
-        return 1;
-    }
-
-    printf("File created: %s\n", argv[1]);
-    
-    /* Ensure all changes are saved to disk before closing */
-    if (save_superblock() < 0) {
-        fprintf(stderr, "Warning: Failed to save superblock\n");
-    }
-    
-    close_disk();  /* This saves the RAM disk to file */
-    return 0;
-}
-
-/* Mkdir command - create directory */
-int cmd_mkdir(int argc, char* argv[]) {
-    if (argc < 2) {
-        fprintf(stderr, "Usage: %s mkdir <dir_path>\n", argv[0]);
-        return 1;
-    }
-
-    if (open_disk() < 0) {
-        fprintf(stderr, "Error: Failed to open disk. Run 'init' first.\n");
-        return 1;
-    }
-
-    if (makeDirectory(argv[1]) < 0) {
-        fprintf(stderr, "Error: Failed to create directory: %s\n", argv[1]);
-        close_disk();
-        return 1;
-    }
-
-    printf("Directory created: %s\n", argv[1]);
-    close_disk();
-    return 0;
-}
-
-/* Ls command - list directory */
-int cmd_ls(int argc, char* argv[]) {
-    const char* path = (argc >= 2) ? argv[1] : "/";
-
-    if (open_disk() < 0) {
-        fprintf(stderr, "Error: Failed to open disk. Run 'init' first.\n");
-        return 1;
-    }
-
-    char output[4096];
-    if (listDirectory(path, output, sizeof(output)) < 0) {
-        fprintf(stderr, "Error: Failed to list directory: %s\n", path);
-        close_disk();
-        return 1;
-    }
-
-    printf("%s", output);
-    close_disk();
-    return 0;
-}
-
-/* Rm command - remove file */
-int cmd_rm(int argc, char* argv[]) {
-    if (argc < 2) {
-        fprintf(stderr, "Usage: %s rm <file_path>\n", argv[0]);
-        return 1;
-    }
-
-    if (open_disk() < 0) {
-        fprintf(stderr, "Error: Failed to open disk. Run 'init' first.\n");
-        return 1;
-    }
-
-    if (deleteFile(argv[1]) < 0) {
-        fprintf(stderr, "Error: Failed to delete file: %s\n", argv[1]);
-        close_disk();
-        return 1;
-    }
-
-    printf("File deleted: %s\n", argv[1]);
-    close_disk();
-    return 0;
-}
-
-/* Rmdir command - remove directory */
-int cmd_rmdir(int argc, char* argv[]) {
-    if (argc < 2) {
-        fprintf(stderr, "Usage: %s rmdir <dir_path>\n", argv[0]);
-        return 1;
-    }
-
-    if (open_disk() < 0) {
-        fprintf(stderr, "Error: Failed to open disk. Run 'init' first.\n");
-        return 1;
-    }
-
-    if (removeDirectory(argv[1]) < 0) {
-        fprintf(stderr, "Error: Failed to remove directory: %s\n", argv[1]);
-        close_disk();
-        return 1;
-    }
-
-    printf("Directory removed: %s\n", argv[1]);
-    close_disk();
-    return 0;
-}
-
-/* Cat command - display file contents */
-int cmd_cat(int argc, char* argv[]) {
-    if (argc < 2) {
-        fprintf(stderr, "Usage: %s cat <file_path>\n", argv[0]);
-        return 1;
-    }
-
-    if (open_disk() < 0) {
-        fprintf(stderr, "Error: Failed to open disk. Run 'init' first.\n");
-        return 1;
-    }
-
-    int fd = openFile(argv[1], MODE_READ);
-    if (fd < 0) {
-        fprintf(stderr, "Error: Failed to open file: %s\n", argv[1]);
-        close_disk();
-        return 1;
-    }
-
-    char buffer[BLOCK_SIZE];
-    int bytes_read;
-    while ((bytes_read = readFile(fd, buffer, BLOCK_SIZE)) > 0) {
-        fwrite(buffer, 1, bytes_read, stdout);
-    }
-
-    printf("\n");
-    closeFile(fd);
-    close_disk();
-    return 0;
-}
-
-/* Write command - write text to file */
-int cmd_write(int argc, char* argv[]) {
-    if (argc < 3) {
-        fprintf(stderr, "Usage: %s write <file_path> <text>\n", argv[0]);
-        return 1;
-    }
-
-    if (open_disk() < 0) {
-        fprintf(stderr, "Error: Failed to open disk. Run 'init' first.\n");
-        return 1;
-    }
-
-    /* Create file if it doesn't exist */
-    if (searchFile(argv[1]) < 0) {
-        if (createFile(argv[1], TYPE_FILE) < 0) {
-            fprintf(stderr, "Error: Failed to create file: %s\n", argv[1]);
-            close_disk();
-            return 1;
-        }
-    }
-
-    int fd = openFile(argv[1], MODE_WRITE);
-    if (fd < 0) {
-        fprintf(stderr, "Error: Failed to open file: %s\n", argv[1]);
-        close_disk();
-        return 1;
-    }
-
-    if (writeFile(fd, argv[2], strlen(argv[2])) < 0) {
-        fprintf(stderr, "Error: Failed to write to file: %s\n", argv[1]);
-        closeFile(fd);
-        close_disk();
-        return 1;
-    }
-
-    closeFile(fd);
-    close_disk();
-    printf("Text written to: %s\n", argv[1]);
-    return 0;
-}
-
-/* Search command - search for file/directory */
-int cmd_search(int argc, char* argv[]) {
-    if (argc < 2) {
-        fprintf(stderr, "Usage: %s search <path>\n", argv[0]);
-        return 1;
-    }
-
-    if (open_disk() < 0) {
-        fprintf(stderr, "Error: Failed to open disk. Run 'init' first.\n");
-        return 1;
-    }
-
-    if (searchFile(argv[1]) == 0) {
-        printf("Found: %s\n", argv[1]);
-        close_disk();
-        return 0;
-    } else {
-        printf("Not found: %s\n", argv[1]);
-        close_disk();
-        return 1;
-    }
-}
 
 /* Interactive shell mode - commands that don't open/close disk */
 static int shell_touch(int argc, char* argv[]) {
@@ -403,9 +162,8 @@ static int shell_search(int argc, char* argv[]) {
 
 /* Interactive shell mode - RAM only, no disk persistence */
 int cmd_shell(int argc, char* argv[]) {
-    printf("TinyFS Interactive Shell (RAM-only mode)\n");
+    printf("TinyFS Interactive Shell \n");
     printf("Type 'help' for commands, 'exit' to quit\n");
-    printf("Note: All data is in RAM and will be lost on exit\n\n");
     
     /* Ensure open file table is initialized */
     init_open_file_table();
@@ -507,37 +265,12 @@ int cmd_shell(int argc, char* argv[]) {
 
 /* Main function */
 int main(int argc, char* argv[]) {
-    if (argc < 2) {
-        print_usage(argv[0]);
-        return 1;
-    }
-
     init_open_file_table();
 
-    const char* command = argv[1];
-
-    if (strcmp(command, "init") == 0) {
-        return cmd_init(argc - 1, argv + 1);
-    } else if (strcmp(command, "touch") == 0) {
-        return cmd_touch(argc - 1, argv + 1);
-    } else if (strcmp(command, "mkdir") == 0) {
-        return cmd_mkdir(argc - 1, argv + 1);
-    } else if (strcmp(command, "ls") == 0) {
-        return cmd_ls(argc - 1, argv + 1);
-    } else if (strcmp(command, "rm") == 0) {
-        return cmd_rm(argc - 1, argv + 1);
-    } else if (strcmp(command, "rmdir") == 0) {
-        return cmd_rmdir(argc - 1, argv + 1);
-    } else if (strcmp(command, "cat") == 0) {
-        return cmd_cat(argc - 1, argv + 1);
-    } else if (strcmp(command, "write") == 0) {
-        return cmd_write(argc - 1, argv + 1);
-    } else if (strcmp(command, "search") == 0) {
-        return cmd_search(argc - 1, argv + 1);
-    } else if (strcmp(command, "shell") == 0 || strcmp(command, "interactive") == 0) {
+    /* Start shell by default, or if "shell" command is given */
+    if (argc == 1 || (argc == 2 && (strcmp(argv[1], "shell") == 0 || strcmp(argv[1], "interactive") == 0))) {
         return cmd_shell(argc - 1, argv + 1);
     } else {
-        fprintf(stderr, "Unknown command: %s\n\n", command);
         print_usage(argv[0]);
         return 1;
     }

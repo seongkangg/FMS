@@ -2,7 +2,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <time.h>
 
 static Superblock superblock_data;
 static Inode inode_table[MAX_INODES];
@@ -66,7 +65,6 @@ int init_filesystem(uint32_t num_blocks) {
     superblock_data.inode_count = MAX_INODES;
     superblock_data.root_inode = ROOT_INODE;
     superblock_data.data_start_block = data_start;
-    superblock_data.created_time = time(NULL);
 
     if (save_superblock() < 0) {
         return -1;
@@ -207,9 +205,6 @@ uint32_t allocate_inode() {
             memset(&inode_table[i], 0, sizeof(Inode));
             inode_table[i].inode_num = i;
             inode_table[i].used = 1;
-            inode_table[i].created_time = time(NULL);
-            inode_table[i].modified_time = time(NULL);
-            inode_table[i].accessed_time = time(NULL);
             save_inode_table();
             return i;
         }
@@ -248,9 +243,6 @@ int init_root_directory() {
     root.name[MAX_FILENAME_LEN - 1] = '\0';
     root.size = 0;
     root.parent_inode = root_inode; /* Root is its own parent */
-    root.created_time = time(NULL);
-    root.modified_time = time(NULL);
-    root.accessed_time = time(NULL);
     root.used = 1;
 
     /* Allocate a data block for directory entries */
